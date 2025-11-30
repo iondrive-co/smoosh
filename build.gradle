@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'iondrive.smoosh'
+version = '1.0-SNAPSHOT'
+
+sourceCompatibility = '17'
+targetCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.openpnp:opencv:4.9.0-0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+}
+
+application {
+    mainClass = 'iondrive.smoosh.RegionDetector'
+}
+
+task runGui(type: JavaExec) {
+    group = 'application'
+    description = 'Run the Region Detector GUI with file selector'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'iondrive.smoosh.RegionDetectorGui'
+}
+
+task createTestImage(type: JavaExec) {
+    group = 'verification'
+    description = 'Create a test image with spaces in filename'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'iondrive.smoosh.CreateTestImage'
+    args = ['test image with spaces.jpg']
+}
+
+test {
+    useJUnitPlatform()
+}
