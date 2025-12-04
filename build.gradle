@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'maven-publish'
 }
 
 group = 'iondrive.smoosh'
@@ -39,4 +40,12 @@ task createTestImage(type: JavaExec) {
 
 test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
 }
