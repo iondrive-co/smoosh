@@ -1,23 +1,43 @@
-# Smoosh
+# Smoosh - Modern Person Detection for Java
 
-Uses OpenCV to detect regions of interest in images and return a bounding box encompassing them.
-Run with ./gradlew runGui or import and call RegionDetector#detectRegionOfInterest
+Simple, accurate person detection using YOLOv8 via ONNX Runtime.
 
-## How It Works
+## Quick Start
 
-### Edge Detection
-1. Converts image to grayscale
-2. Applies Gaussian blur to reduce noise
-3. Runs Canny edge detection
-4. Finds contours and returns bounding box of largest contour
+### 1. Model Setup
 
-### Saliency Detection
-1. Resizes image for faster processing
-2. Applies Laplacian operator to find high-frequency regions
-3. Thresholds to create binary mask
-4. Finds contours and returns bounding box of largest salient region
+```bash
+# Model downloads automatically when you build
+./gradlew build
+```
+or
+```bash
+chmod +x download_model.sh
+./download_model.sh
+```
+The model (~6MB) is bundled in the JAR, so end users don't need to download anything.
 
-### Face Detection
-1. Converts to grayscale and equalizes histogram
-2. Uses Haar Cascade classifier to detect faces
-3. Returns bounding box of largest face detected
+### 2. Use as Library
+
+```java
+import iondrive.smoosh.PersonDetector;
+import java.util.List;
+
+PersonDetector detector = new PersonDetector();
+List<PersonDetector.Detection> people = detector.detectPeople("photo.jpg");
+
+for (PersonDetector.Detection person : people) {
+    System.out.println("Found person at: " + person.bbox);
+    System.out.println("Confidence: " + person.confidence);
+}
+
+detector.close();
+```
+
+### 3. Visual Demo
+
+```bash
+./gradlew run --args="photo.jpg"
+```
+
+This displays the image with bounding boxes around detected people.

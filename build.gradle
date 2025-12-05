@@ -15,32 +15,105 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.microsoft.onnxruntime:onnxruntime:1.19.2'
     implementation 'org.openpnp:opencv:4.9.0-0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
 }
 
 application {
-    mainClass = 'iondrive.smoosh.RegionDetector'
+    mainClass = 'iondrive.smoosh.Main'
 }
 
-task runGui(type: JavaExec) {
-    group = 'application'
-    description = 'Run the Region Detector GUI with file selector'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'iondrive.smoosh.RegionDetectorGui'
-}
-
-task createTestImage(type: JavaExec) {
+task benchmark(type: JavaExec) {
     group = 'verification'
-    description = 'Create a test image with spaces in filename'
+    description = 'Benchmark person detection accuracy against ground truth'
     classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'iondrive.smoosh.CreateTestImage'
-    args = ['test image with spaces.jpg']
+    mainClass = 'iondrive.smoosh.PersonDetectionBenchmark'
 }
 
 test {
     useJUnitPlatform()
 }
+
+// Auto-download YOLO model if not present
+task downloadModel {
+    group = 'build setup'
+    description = 'Download YOLOv8 model (required for build)'
+
+    def modelFile = file('src/main/resources/models/yolov8n.onnx')
+
+    outputs.file(modelFile)
+
+    doLast {
+        if (!modelFile.exists()) {
+            println "Downloading YOLOv8n model..."
+
+            mkdir 'src/main/resources/models'
+
+            def pythonScript = """
+try:
+    from ultralytics import YOLO
+    import os
+    print("Downloading and exporting YOLOv8n...")
+    model = YOLO('yolov8n.pt')
+    export_path = model.export(format='onnx')
+
+    # Move to resources
+    import shutil
+    dest = 'src/main/resources/models/yolov8n.onnx'
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+    # Handle both string and Path returns
+    source = str(export_path)
+    if os.path.exists(source):
+        shutil.move(source, dest)
+        print(f"Model saved to {dest}")
+    else:
+        # Try current directory
+        if os.path.exists('yolov8n.onnx'):
+            shutil.move('yolov8n.onnx', dest)
+            print(f"Model saved to {dest}")
+        else:
+            raise Exception("Could not find exported model")
+
+    # Cleanup
+    if os.path.exists('yolov8n.pt'):
+        os.remove('yolov8n.pt')
+
+except ImportError:
+    print("ERROR: ultralytics not installed")
+    print("Install with: pip install ultralytics")
+    exit(1)
+except Exception as e:
+    print(f"ERROR: {e}")
+    exit(1)
+"""
+
+            def result = exec {
+                commandLine 'python3', '-c', pythonScript
+                ignoreExitValue = true
+            }
+
+            if (result.exitValue != 0) {
+                throw new GradleException(
+                    "Failed to download model. Install ultralytics: pip install ultralytics"
+                )
+            }
+
+            if (!modelFile.exists()) {
+                throw new GradleException("Model download succeeded but file not found at expected location")
+            }
+
+            println "✓ Model downloaded successfully (${modelFile.length() / 1024 / 1024} MB)"
+        } else {
+            println "✓ Model already exists (${modelFile.length() / 1024 / 1024} MB)"
+        }
+    }
+}
+
+// Ensure model is downloaded before processing resources
+processResources.dependsOn downloadModel
 
 publishing {
     publications {

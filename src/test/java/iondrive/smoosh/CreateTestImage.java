@@ -7,9 +7,27 @@ import org.opencv.core.Scalar;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import java.nio.file.Path;
+
+/**
+ * Utility for creating test images.
+ */
 public class CreateTestImage {
     static {
         nu.pattern.OpenCV.loadLocally();
+    }
+
+    /**
+     * Create a uniform (solid color) test image.
+     * Useful for testing edge cases where no person is present.
+     */
+    public static String createUniformImage(final Path tempDir, final String filename,
+                                           final int width, final int height) {
+        final String path = tempDir.resolve(filename).toString();
+        final Mat image = new Mat(height, width, CvType.CV_8UC3, new Scalar(128, 128, 128));
+        Imgcodecs.imwrite(path, image);
+        image.release();
+        return path;
     }
 
     public static void main(final String[] args) {
@@ -24,6 +42,7 @@ public class CreateTestImage {
             -1);
 
         Imgcodecs.imwrite(filename, image);
+        image.release();
         System.out.println("Created test image: " + filename);
     }
 }

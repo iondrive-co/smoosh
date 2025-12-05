@@ -1,0 +1,121 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install ultralytics
+        run: |
+          pip install ultralytics onnx
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Download YOLO model
+        run: ./gradlew downloadModel
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Run benchmark
+        run: ./gradlew benchmark
+        continue-on-error: true
+
+      - name: Build distribution
+        run: ./gradlew distZip distTar
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            build/distributions/*.zip
+            build/distributions/*.tar
+            build/libs/*.jar
+          body: |
+            # Smoosh ${{ steps.get_version.outputs.VERSION }}
+
+            ## Modern Person Detection for Java
+
+            This release includes YOLOv8-based person detection with ONNX Runtime.
+
+            ### What's Included
+            - Self-contained JAR with bundled YOLOv8n model
+            - Distribution archives (ZIP/TAR)
+            - Source code
+
+            ### Quick Start
+
+            **As Library:**
+            ```gradle
+            dependencies {
+                implementation 'com.github.iondrive-co:smoosh:${{ steps.get_version.outputs.VERSION }}'
+            }
+            ```
+
+            **As Visual Demo:**
+            ```bash
+            java -jar smoosh-*.jar image.jpg
+            ```
+            Displays the image with bounding boxes around detected people.
+
+            **From Source:**
+            ```bash
+            ./gradlew run --args="image.jpg"
+            ```
+            Displays the image with bounding boxes around detected people.
+
+            ### Performance
+            - **Accuracy**: 60-80% F1-score
+            - **Speed**: Real-time on CPU
+            - **Model**: YOLOv8n (6MB, bundled)
+
+            See [README](https://github.com/iondrive-co/smoosh/blob/main/README.md) for full documentation.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Maven Local (verification)
+        run: ./gradlew publishToMavenLocal

@@ -1,0 +1,9 @@
+jdk:
+  - openjdk17
+
+before_install:
+  - pip3 install ultralytics onnx
+  - ./gradlew downloadModel
+
+install:
+  - ./gradlew clean build publishToMavenLocal -x test
